@@ -1,0 +1,116 @@
+# Copyright (c) 2020, Sugon CORPORATION.  All rights reserved.
+image:
+  repository: dcu-exporter
+  pullPolicy: IfNotPresent
+  # Image tag defaults to AppVersion, but you can use the tag key
+  # for the image tag, e.g:
+  tag: test
+
+# Image pull secrets for container images
+imagePullSecrets: []
+
+# Overrides the chart's name
+nameOverride: ""
+
+# Overrides the chart's computed fullname
+fullnameOverride: ""
+
+# Overrides the deployment namespace
+namespaceOverride: ""
+
+# Defines the runtime class that will be used by the pod
+runtimeClassName: ""
+# Defines serviceAccount names for components.
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "pod-reader"
+
+rollingUpdate:
+  # Specifies maximum number of DaemonSet pods that can be unavailable during the update
+  maxUnavailable: 1
+  # Specifies maximum number of nodes with an existing available DaemonSet pod that can have an updated DaemonSet pod during during an update
+  maxSurge: 0
+
+# Labels to be added to dcu-exporter pods
+podLabels: {}
+hostNetwork: true
+# Annotations to be added to dcu-exporter pods
+podAnnotations:
+  prometheus.io/scrape: 'true'
+  prometheus.io/port: '16080'
+  prometheus.io/path: 'metrics'
+
+# The SecurityContext for the dcu-exporter pods
+podSecurityContext: {}
+
+# The SecurityContext for the dcu-exporter containers
+securityContext:
+  privileged: true
+
+# Defines the dcu-exporter service
+service:
+  # When enabled, the helm chart will create service
+  enable: true
+  type: NodePort
+  port: 16080
+  address: "16080"
+  # Annotations to add to the service
+  annotations: {}
+
+# Allows to control pod resources
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+  #node: dcu
+
+tolerations: []
+#- operator: Exists
+
+affinity: {}
+  #nodeAffinity:
+  #  requiredDuringSchedulingIgnoredDuringExecution:
+  #    nodeSelectorTerms:
+  #    - matchExpressions:
+  #      - key: nvidia-gpu
+  #        operator: Exists
+
+extraHostVolumes:
+  - name: hostname
+    hostPath: /etc/hostname
+  - name: vdev
+    hostPath: /etc/vdev
+
+extraConfigMapVolumes: []
+#- name: exporter-metrics-volume
+##  configMap:
+##    name: exporter-metrics-config-map
+
+extraVolumeMounts:
+  - name: "hostname"
+    readOnly: true
+    mountPath: "/etc/hostname"
+  - name: "vdev"
+    readOnly: true
+    mountPath: "/etc/vdev""
+
+extraEnv:
+  - name: LD_LIBRARY_PATH
+    valueFrom:
+      configMapKeyRef:
+        name: ld-library-path-config
+        key: LD_LIBRARY_PATH
+
+
+# Path to the kubelet
+kubeletPath: "/var/lib/kubelet"

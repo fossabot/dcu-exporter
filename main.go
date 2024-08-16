@@ -3,13 +3,15 @@ package main
 import (
 	"bytes"
 	"dcu-exporter-v2/pkg/podresources"
-	"dcu-exporter-v2/pkg/shim"
+	"flag"
 	"fmt"
+	"github.com/Project-HAMi/dcu-dcgm/pkg/dcgm"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -21,30 +23,13 @@ var (
 	socket    = "/var/lib/kubelet/pod-resources/kubelet.sock"
 	resources = []string{
 		"hygon.com/dcu",
+		"hygon.com/dcu-share",
+		"hygon.com/dcunum", // 4NF HAMi   Cannot prompt because user interactivity has been disabled
 	}
 	maxSize = 1024 * 1024 * 16 // 16 Mb
-)
 
-var type2name = map[string]string{
-	"66a1": "WK100",
-	"51b7": "Z100L",
-	"52b7": "Z100L",
-	"53b7": "Z100L",
-	"54b7": "Z100L",
-	"55b7": "Z100L",
-	"56b7": "Z100L",
-	"57b7": "Z100L",
-	"61b7": "K100",
-	"62b7": "K100",
-	"63b7": "K100",
-	"64b7": "K100",
-	"65b7": "K100",
-	"66b7": "K100",
-	"67b7": "K100",
-	"6210": "K100 AI",
-	"6211": "K100 AI Liquid",
-	"6212": "K100 AI Liquid",
-}
+	portFlag = flag.Int("port", 16080, "Port number for the exporter")
+)
 
 // 定义collector
 var (
@@ -117,6 +102,57 @@ var (
 		},
 		[]string{"node", "minor_number", "pcieBus_number", "device_id", "name", "container", "dcu_pod_name", "dcu_pod_namespace"},
 	)
+	dcuComputeUnitCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dcu_compute_unit_count",
+			Help: "dcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number"},
+	)
+	dcuComputeUnitRemainingCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dcu_compute_unit_remaining_count",
+			Help: "dcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number"},
+	)
+	dcuMemoryRemaining = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dcu_memory_remaining",
+			Help: "dcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number"},
+	)
+
+	// 虚拟设备collector
+	vdcuComputeUnitCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "vdcu_compute_unit_count",
+			Help: "vdcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number", "container_id"},
+	)
+	vdcuGlobalMemSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "vdcu_global_memory_size",
+			Help: "vdcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number", "container_id"},
+	)
+	vdcuUsageMemSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "vdcu_usage_memory_size",
+			Help: "vdcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number", "container_id"},
+	)
+	vdcuPercent = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "vdcu_percent",
+			Help: "vdcu metrics of gauge",
+		},
+		[]string{"device_id", "minor_number", "name", "node", "pcieBus_number", "container_id"},
+	)
 )
 
 var deviceNumTag = 0
@@ -132,20 +168,36 @@ func collectorReset() {
 	dcuMemoryCapBytes.Reset()
 	dcuPcieBwMb.Reset()
 	dcuContainer.Reset()
+	dcuComputeUnitCount.Reset()
+	dcuComputeUnitRemainingCount.Reset()
+	dcuMemoryRemaining.Reset()
+	vdcuCollectorReset()
+}
+
+func vdcuCollectorReset() {
+	vdcuComputeUnitCount.Reset()
+	vdcuGlobalMemSize.Reset()
+	vdcuUsageMemSize.Reset()
+	vdcuPercent.Reset()
 }
 
 // 采集数据并设置collector值
 func recordMetrics() {
 	go func() {
 		for {
-			numMonitorDevices := shim.GO_rsmi_num_monitor_devices()
-			fmt.Printf("Get devices number : %v \n", numMonitorDevices)
+			deviceInfos, err := dcgm.AllDeviceInfos()
+			if err != nil {
+				glog.Errorf("Get device metrics error: %v ", err)
+				time.Sleep(10 * time.Second) // 等待一段时间后重试
+				continue
+			}
+			fmt.Printf("Get devices number : %v \n", len(deviceInfos))
 			// 如果出现device数量变化了，就要重置collector
-			if deviceNumTag != numMonitorDevices {
-				deviceNumTag = numMonitorDevices
+			if deviceNumTag != len(deviceInfos) {
+				deviceNumTag = len(deviceInfos)
 				collectorReset()
 			}
-			if numMonitorDevices > 0 { // 存在 dcu 设备
+			if len(deviceInfos) > 0 {
 				cmd := exec.Command("cat", "/etc/hostname")
 				var out bytes.Buffer
 				var stderr bytes.Buffer
@@ -160,112 +212,135 @@ func recordMetrics() {
 				deviceIDs := make(map[string]string)
 				deviceMinors := make(map[string]string)
 				deviceName := make(map[string]string)
-				for i := 0; i < numMonitorDevices; i++ {
-					bdfid := shim.GO_rsmi_dev_pci_id_get(i)
-					// 解析BDFID
-					domain := (bdfid >> 32) & 0xffffffff
-					bus := (bdfid >> 8) & 0xff
-					dev := (bdfid >> 3) & 0x1f
-					function := bdfid & 0x7
-					// 格式化PCI ID
-					picBusNumber := fmt.Sprintf("%04x:%02x:%02x.%x", domain, bus, dev, function)
-					deviceId := shim.GO_rsmi_dev_serial_number_get(i)
-
-					devId := shim.GO_rsmi_dev_id_get(i)
-					subSystemName := type2name[fmt.Sprintf("%X", devId)]
-					temperature := shim.GO_rsmi_dev_temp_metric_get(i, 0, shim.RSMI_TEMP_CURRENT)
-					t, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(temperature)/1000.0), 64)
-					fmt.Printf("🌡️  DCU[%v] temperature : %v \n", i, t)
+				vdeviceNumTag := make(map[string]int)
+				for _, info := range deviceInfos {
 					dcuTemp.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(t)
-
-					powerUsage := shim.GO_rsmi_dev_power_ave_get(i, 0)
-					pu, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(powerUsage)/1000000.0), 64)
-					fmt.Printf("🔋 DCU[%v] power cap : %v \n", i, pu)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.Temperature)
 					dcuPowerUsage.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(pu)
-
-					powerCap := shim.GO_rsmi_dev_power_cap_get(i, 0)
-					pc, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(powerCap)/1000000.0), 64)
-					fmt.Printf("\U0001FAAB DCU[%v] power usage : %v \n", i, pc)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.PowerUsage)
 					dcuPowerCap.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(pc)
-
-					memoryCap := shim.GO_rsmi_dev_memory_total_get(i, shim.RSMI_MEM_TYPE_FIRST)
-					mc, _ := strconv.ParseFloat(fmt.Sprintf("%f", float64(memoryCap)/1.0), 64)
-					fmt.Printf(" DCU[%v] memory cap : %v \n", i, mc)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.PowerCap)
 					dcuMemoryCapBytes.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(mc)
-
-					memoryUsed := shim.GO_rsmi_dev_memory_usage_get(i, shim.RSMI_MEM_TYPE_FIRST)
-					mu, _ := strconv.ParseFloat(fmt.Sprintf("%f", float64(memoryUsed)/1.0), 64)
-					fmt.Printf(" DCU[%v] memory used : %v \n", i, mu)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.MemoryCap)
 					dcuUsedMemoryBytes.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(mu)
-
-					utilizationRate := shim.GO_rsmi_dev_busy_percent_get(i)
-					ur, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(utilizationRate)/1.0), 64)
-					fmt.Printf(" DCU[%v] utilization rate : %v \n", i, ur)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.MemoryUsed)
 					dcuUtilizationRate.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(ur)
-
-					sent, received, maxPktSz := shim.GO_rsmi_dev_pci_throughput_get(i)
-					pcieBwMb, _ := strconv.ParseFloat(fmt.Sprintf("%.3f", float64(received+sent)*float64(maxPktSz)/1024.0/1024.0), 64)
-					fmt.Printf(" DCU[%v] PCIE  bandwidth : %v \n", i, pcieBwMb)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.UtilizationRate)
 					dcuPcieBwMb.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(pcieBwMb)
-
-					clk := shim.GO_rsmi_dev_gpu_clk_freq_get(i, shim.RSMI_CLK_TYPE_SYS)
-					sclk, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(clk.Frequency[clk.Current])/1000000.0), 64)
-					fmt.Printf(" DCU[%v] SCLK : %v \n", i, sclk)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.PcieBwMb)
 					dcuSclk.With(prometheus.Labels{
-						"device_id":      deviceId,
-						"minor_number":   strconv.Itoa(i),
-						"name":           subSystemName,
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
 						"node":           nodeName,
-						"pcieBus_number": picBusNumber,
-					}).Set(sclk)
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.Clk)
+					dcuComputeUnitCount.With(prometheus.Labels{
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
+						"node":           nodeName,
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(info.Device.ComputeUnitCount)
+					dcuComputeUnitRemainingCount.With(prometheus.Labels{
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
+						"node":           nodeName,
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(float64(info.Device.ComputeUnitRemainingCount))
+					dcuMemoryRemaining.With(prometheus.Labels{
+						"device_id":      info.Device.DeviceId,
+						"minor_number":   strconv.Itoa(info.Device.MinorNumber),
+						"name":           info.Device.SubSystemName,
+						"node":           nodeName,
+						"pcieBus_number": info.Device.PciBusNumber,
+					}).Set(float64(info.Device.MemoryRemaining))
 
-					deviceIDs[picBusNumber] = deviceId
-					deviceMinors[picBusNumber] = strconv.Itoa(i)
-					deviceName[picBusNumber] = subSystemName
+					// vdcu metrics
+					fmt.Printf("vdeviceNumTag[info.Device.PciBusNumber] : %v \n", vdeviceNumTag[info.Device.PciBusNumber])
+					fmt.Printf("len(info.VirtualDevices) : %v \n", len(info.VirtualDevices))
+
+					if vdeviceNumTag[info.Device.PciBusNumber] != len(info.VirtualDevices) {
+						fmt.Printf("info.VirtualDevices : %v \n", info.VirtualDevices)
+						vdeviceNumTag[info.Device.PciBusNumber] = len(info.VirtualDevices)
+						fmt.Printf("vdeviceNumTag[info.Device.PciBusNumber] : %v \n", vdeviceNumTag[info.Device.PciBusNumber])
+						vdcuCollectorReset()
+					}
+					for _, virtualDevice := range info.VirtualDevices {
+						vdcuComputeUnitCount.With(prometheus.Labels{
+							"device_id":      strconv.Itoa(virtualDevice.DeviceID),
+							"minor_number":   strconv.Itoa(virtualDevice.VMinorNumber),
+							"node":           nodeName,
+							"name":           info.Device.SubSystemName,
+							"pcieBus_number": info.Device.PciBusNumber,
+							"container_id":   strconv.FormatUint(virtualDevice.ContainerID, 10),
+						}).Set(float64(virtualDevice.ComputeUnitCount))
+						vdcuGlobalMemSize.With(prometheus.Labels{
+							"device_id":      strconv.Itoa(virtualDevice.DeviceID),
+							"minor_number":   strconv.Itoa(virtualDevice.VMinorNumber),
+							"node":           nodeName,
+							"name":           info.Device.SubSystemName,
+							"pcieBus_number": info.Device.PciBusNumber,
+							"container_id":   strconv.FormatUint(virtualDevice.ContainerID, 10),
+						}).Set(float64(virtualDevice.GlobalMemSize))
+						vdcuUsageMemSize.With(prometheus.Labels{
+							"device_id":      strconv.Itoa(virtualDevice.DeviceID),
+							"minor_number":   strconv.Itoa(virtualDevice.VMinorNumber),
+							"node":           nodeName,
+							"name":           info.Device.SubSystemName,
+							"pcieBus_number": info.Device.PciBusNumber,
+							"container_id":   strconv.FormatUint(virtualDevice.ContainerID, 10),
+						}).Set(float64(virtualDevice.UsageMemSize))
+						vdcuPercent.With(prometheus.Labels{
+							"device_id":      strconv.Itoa(virtualDevice.DeviceID),
+							"minor_number":   strconv.Itoa(virtualDevice.VMinorNumber),
+							"node":           nodeName,
+							"name":           info.Device.SubSystemName,
+							"pcieBus_number": info.Device.PciBusNumber,
+							"container_id":   strconv.FormatUint(virtualDevice.ContainerID, 10),
+						}).Set(float64(virtualDevice.Percent))
+					}
+
+					deviceIDs[info.Device.PciBusNumber] = info.Device.DeviceId
+					deviceMinors[info.Device.PciBusNumber] = strconv.Itoa(info.Device.MinorNumber)
+					deviceName[info.Device.PciBusNumber] = info.Device.SubSystemName
 				}
-
 				// 获取pod resources指标数据
 				podresource := podresources.NewPodResourcesClient(timeout, socket, resources, maxSize)
 				podInfoMap, err := podresource.GetDeviceToPodInfo()
@@ -287,8 +362,7 @@ func recordMetrics() {
 					}).Set(1)
 				}
 			}
-
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}()
 }
@@ -296,8 +370,14 @@ func recordMetrics() {
 func main() {
 	glog.Infof("🚀 🚀 🚀  DCU exporter start ...")
 
-	fmt.Printf("Init ROCm smi: %v \n", shim.GO_rsmi_init())
-	defer shim.GO_rsmi_shutdown()
+	fmt.Printf("Init ROCm smi: %v \n", dcgm.Init())
+	defer func() {
+		err := dcgm.ShutDown()
+		if err != nil {
+			glog.Errorf("DCU exporter shutdown Error: %v ", err)
+			return
+		}
+	}()
 
 	// 这里用自定义注册表，可以使返回的数据比较简洁
 	registry := prometheus.NewRegistry()
@@ -315,8 +395,25 @@ func main() {
 	registry.MustRegister(dcuPcieBwMb)
 	registry.MustRegister(dcuSclk)
 	registry.MustRegister(dcuContainer)
+	registry.MustRegister(dcuComputeUnitCount)
+	registry.MustRegister(dcuComputeUnitRemainingCount)
+	registry.MustRegister(dcuMemoryRemaining)
+	registry.MustRegister(vdcuComputeUnitCount)
+	registry.MustRegister(vdcuGlobalMemSize)
+	registry.MustRegister(vdcuUsageMemSize)
+	registry.MustRegister(vdcuPercent)
 
 	recordMetrics()
+
+	flag.Parse()
+	port := fmt.Sprintf("%d", *portFlag)
+	glog.Infof("🚀 🚀 🚀  DCU exporter start on port %d ...", *portFlag)
+	if port == "16080" {
+		port = os.Getenv("DCU_EXPORTER_LISTEN")
+		if port == "" {
+			port = "16080"
+		}
+	}
 	http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: registry}))
-	log.Fatal(http.ListenAndServe(":16081", nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
