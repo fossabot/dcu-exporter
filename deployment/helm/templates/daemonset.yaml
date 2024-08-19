@@ -1,0 +1,125 @@
+# Copyright (c) 2024, Sugon CORPORATION.  All rights reserved.
+#
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "dcu-exporter.fullname" . }}
+  namespace: {{ include "dcu-exporter.namespace" . }}
+  labels:
+    {{- include "dcu-exporter.labels" . | nindent 4 }}
+    app.kubernetes.io/name: "dcu-exporter"
+    {{- if .Values.image.tag }}
+    app.kubernetes.io/version: {{ .Values.image.tag }}
+    {{- end }}
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "dcu-exporter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: "dcu-exporter"
+      {{- if .Values.image.tag }}
+      app.kubernetes.io/version: {{ .Values.image.tag }}
+      {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "dcu-exporter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/name: "dcu-exporter"
+        {{- if .Values.image.tag }}
+        app.kubernetes.io/version: {{ .Values.image.tag }}
+        {{- end }}
+        {{- if .Values.podLabels }}
+        {{- toYaml .Values.podLabels | nindent 8 }}
+        {{- end }}
+      {{- if .Values.podAnnotations }}
+      annotations:
+      {{- toYaml .Values.podAnnotations | nindent 8 }}
+      {{- end }}
+      name: {{ include "dcu-exporter.fullname" . }}
+    spec:
+      {{- if .Values.hostNetwork }}
+      hostNetwork: {{ .Values.hostNetwork }}
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dcu-exporter.serviceAccountName" . }}
+      {{- if .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      volumes:
+      - name: "var"
+        hostPath:
+          path: {{ .Values.kubeletPath }}
+      {{- range .Values.extraHostVolumes }}
+      - name: {{ .name | quote }}
+        hostPath:
+          path: {{ .hostPath | quote }}
+      {{- end }}
+      {{- with .Values.extraConfigMapVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: "dcu-exporter"
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        {{- if .Values.image.tag }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        {{- else }}
+        image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+        {{- end }}
+        imagePullPolicy: "{{ .Values.image.pullPolicy }}"
+        args:
+        {{- range $.Values.arguments }}
+        - {{ . }}
+        {{- end }}
+        env:
+        - name: "DCU_EXPORTER_KUBERNETES"
+          value: "true"
+        - name: "DCU_EXPORTER_LISTEN"
+          value: "{{ .Values.service.address }}"
+#        - name: "DCU_EXPORTER_POD_NAME"
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: metadata.name
+#        - name: "DCU_EXPORTER_POD_NAMESPACE"
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: metadata.namespace
+#        - name: NODE_NAME
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: spec.nodeName
+        {{- if .Values.extraEnv }}
+        {{- toYaml .Values.extraEnv | nindent 8 }}
+        {{- end }}
+        ports:
+        - name: "metrics"
+          containerPort: {{ .Values.service.port }}
+        volumeMounts:
+        - name: "var"
+          readOnly: true
+          mountPath: "/var/lib/kubelet"
+        {{- if .Values.extraVolumeMounts }}
+        {{- toYaml .Values.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if .Values.resources }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        {{- end }}

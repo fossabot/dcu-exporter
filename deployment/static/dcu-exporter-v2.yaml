@@ -1,0 +1,164 @@
+# 1). kubectl create configmap -n kube-system ld-library-path-config --from-literal=LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH)
+# 2). k8s DCU节点创建 /etc/vdev 目录
+# 2). 修改yaml文件中Daemonset和Service相关端口号配置，默认16080
+# 3). kubectl apply -f dcu-exporter-v2.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: "dcu-exporter"
+  namespace: "kube-system"
+  labels:
+    app.kubernetes.io/name: "dcu-exporter"
+    app.kubernetes.io/version: "v2.0.0.240718"
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "dcu-exporter"
+      app.kubernetes.io/version: "v2.0.0.240718"
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: &portStr '16080'
+        prometheus.io/path: 'metrics'
+      labels:
+        app.kubernetes.io/name: "dcu-exporter"
+        app.kubernetes.io/version: "v2.0.0.240718"
+      name: "dcu-exporter"
+    spec:
+      hostNetwork: true
+      serviceAccount: pod-reader
+      containers:
+      - image: "dcu-exporter:v2.0.0.240718"
+        securityContext:
+          privileged: true
+        env:
+        - name: "DCU_EXPORTER_LISTEN"
+          value: *portStr
+#        - name: "DCU_EXPORTER_KUBERNETES"
+#          value: "true"
+#        - name: DCU_EXPORTER_NODENAME
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: spec.nodeName
+#        - name: DCU_EXPORTER_POD_NAME
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: metadata.name
+#        - name: DCU_EXPORTER_POD_NAMESPACE
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: metadata.namespace
+#        - name: LD_LIBRARY_PATH
+#          valueFrom:
+#            configMapKeyRef:
+#              name: ld-library-path-config
+#              key: LD_LIBRARY_PATH
+        name: "dcu-exporter"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: "metrics"
+          containerPort: &portInt 16080
+          hostPort: *portInt
+#        securityContext:
+#          runAsNonRoot: false
+#          runAsUser: 0
+        volumeMounts:
+          - name: "var"
+            readOnly: true
+            mountPath: "/var/lib/kubelet"    
+          - name: "kfd"
+            readOnly: true
+            mountPath: "/dev/kfd"
+          - name: "mkfd"
+            readOnly: true
+            mountPath: "/dev/mkfd"  
+          - name: "dri"
+            readOnly: true
+            mountPath: "/dev/dri"     
+          - name: "hostname"
+            readOnly: true
+            mountPath: "/etc/hostname"
+          - name: "vdev"
+            readOnly: true
+            mountPath: "/etc/vdev"
+      volumes:
+      - name: "var"
+        hostPath:
+          path: "/var/lib/kubelet"
+      - name: "kfd"
+        hostPath:
+          path: "/dev/kfd"
+      - name: "mkfd"
+        hostPath:
+          path: "/dev/mkfd"
+      - name: "dri"
+        hostPath:
+          path: "/dev/dri"
+      - name: "hostname"
+        hostPath:
+          path: "/etc/hostname"
+      - name: "vdev"
+        hostPath:
+          path: "/etc/vdev"
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: "dcu-exporter"
+  labels:
+    app.kubernetes.io/name: "dcu-exporter"
+    app.kubernetes.io/version: "v2.0.0.240718"
+spec:
+  selector:
+    app.kubernetes.io/name: "dcu-exporter"
+    app.kubernetes.io/version: "v2.0.0.240718"
+  ports:
+  - name: "metrics"
+    port: 16080
+  type: NodePort 
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pod-reader
+  namespace: kube-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-reader
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - "*"
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - pods
+    verbs:
+      - '*'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-pods-global
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: pod-reader
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io

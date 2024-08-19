@@ -1,0 +1,11 @@
+apiVersion: v2
+name: dcu-exporter
+description: A Helm chart for DCU exporter
+version: "2.0.0"
+kubeVersion: ">1.17.0-0"
+appVersion: "2.0.0"
+keywords:
+  - dcu
+  - dtk
+  - compute
+  - monitoring

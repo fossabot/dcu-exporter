@@ -1,25 +1,13 @@
-/*Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package podresources
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	"net"
-	"strings"
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -60,6 +48,14 @@ type PodInfo struct {
 	Name        string
 }
 
+var (
+	kubeconfig *string
+)
+
+func init() {
+	kubeconfig = flag.String("kubeconfig", "/root/.kube/config", "absolute path to the kubeconfig file")
+}
+
 func connectToServer(socket string, timeout time.Duration, maxSize int) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -95,8 +91,19 @@ func listPods(socket string, timeout time.Duration, maxSize int) (*podresourcesa
 	return resp, nil
 }
 
+func buildConfig(kubeconfig string) (*rest.Config, error) {
+	// Check if the kubeconfig file exists
+	if _, err := os.Stat(kubeconfig); err == nil {
+		// If the kubeconfig file exists, use it to build the configuration
+		return clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+	// If the kubeconfig file does not exist, use InClusterConfig
+	return rest.InClusterConfig()
+}
+
 func getNonCompletedAndNonFailedPods() (map[string]bool, error) {
-	config, err := rest.InClusterConfig()
+	flag.Parse()
+	config, err := buildConfig(*kubeconfig)
 	if err != nil {
 		fmt.Errorf("%v", err)
 	}
@@ -123,9 +130,9 @@ func getNonCompletedAndNonFailedPods() (map[string]bool, error) {
 	return filterPods, nil
 }
 
-func contains(set []string, s string) bool {
-	for i := range set {
-		if strings.Contains(s, set[i]) {
+func contains(set []string, target string) bool {
+	for _, str := range set {
+		if str == target {
 			return true
 		}
 	}

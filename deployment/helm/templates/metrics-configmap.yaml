@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ld-library-path-config
+  namespace: {{ include "dcu-exporter.namespace" . }}
+data:
+  LD_LIBRARY_PATH: ""
