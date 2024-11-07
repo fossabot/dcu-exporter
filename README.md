@@ -10,7 +10,18 @@ DCU-Exporter的官方文档可以在 [光合开发者社区](https://cancon.hpcc
 
 ### 物理机快速启动
 
-前置条件：在安装DCU的节点上，启动dcu-exporter前需要安装dtk并使环境变量生效，或者将目标主机操作系统对应dtk的dtk/rocm_smi/lib目录下librocm_smi64.so.2.8动态链接库放置到目标主机/usr/lib64目录下，并在/usr/lib64目录创建指向librocm_smi64.so.2.8的软链接librocm_smi64.so.2和指向librocm_smi64.so.2的软链接librocm_smi64.so。
+前置条件：DCU-Exporter运行依赖于DCU底层动态链接库libhydmi.so和librocm_smi64.so，这两个动态链接库的安装方式如下。
+#### 安装方式一：
+1. DCU驱动安装（libhydmi.so动态链接库包含在DCU驱动中）
+2. DTK安装并运行source dtk_dir/env.sh使环境变量生效(librocm_smi64.so动态链接库包含在DTK中)
+
+#### 安装方式二：
+1. 将pkg/shim/lib目录下librocm_smi64.so.2.8和libhydmi.so.1.4动态链接库放置到物理机某个目录下（如/opt/dcu-exporter/lib）。
+   在/opt/dcu-exporter/lib目录创建指向librocm_smi64.so.2.8的软链接librocm_smi64.so.2和指向librocm_smi64.so.2的软链接librocm_smi64.so；
+   在/opt/dcu-exporter/lib目录创建指向libhydmi.so.1.4的软链接libhydmi.so.1和指向libhydmi.so.1的软链接libhydmi.so。
+   ![img.png](liblink.png)
+2. 动态链接库加载到系统环境变量
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/dcu-exporter/lib
 
 dcu-exporter启动直接运行可执行文件dcu-exporter-v2，dcu-exporter-v2支持启动参数和环境变量两种方式指定exporter服务端口。启动时添加-port参数指定端口，环境变量DCU_EXPORTER_LISTEN也可指定服务端口。优先启动参数指定，其次环境变量指定，最后默认16080。
 
@@ -46,14 +57,12 @@ dcu_temp{device_id="T8R1380019021101",minor_number="1",name="",node="dcunode3",p
 要在DCU节点上收集指标，只需启动dcu-exporter容器：
 
 ```bash
-docker run --name dcu-exporter-v2 -d --privileged 
+docker run --name dcu-exporter-v2 -d --privileged \
 --device=/dev/kfd \
 --device=/dev/mkfd \
 --device=/dev/dri \
--v /opt/hyhal:/opt/hyhal \
 -v /etc/hostname:/etc/hostname \
--e LD_LIBRARY_PATH=$LD_LIBRARY_PATH \
--p 16080:16080 dcu-exporter:v2.0.1
+-p 16080:16080 dcu-exporter:v2.0.0.240718
 ```
 
 容器启动后，使用curl命令来查看指标：

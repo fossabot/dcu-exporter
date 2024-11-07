@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1alpha1"
 )
 
 type PodResources interface {
