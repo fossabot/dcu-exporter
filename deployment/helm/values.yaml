@@ -4,7 +4,7 @@ image:
   pullPolicy: IfNotPresent
   # Image tag defaults to AppVersion, but you can use the tag key
   # for the image tag, e.g:
-  tag: test
+  tag: v2.0.0.240718
 
 # Image pull secrets for container images
 imagePullSecrets: []
@@ -90,11 +90,14 @@ extraHostVolumes:
     hostPath: /etc/hostname
   - name: vdev
     hostPath: /etc/vdev
+  - name: kfd
+    hostPath: /dev/kfd
+  - name: mkfd
+    hostPath: /dev/mkfd
+  - name: dri
+    hostPath: /dev/dri
 
 extraConfigMapVolumes: []
-#- name: exporter-metrics-volume
-##  configMap:
-##    name: exporter-metrics-config-map
 
 extraVolumeMounts:
   - name: "hostname"
@@ -102,14 +105,18 @@ extraVolumeMounts:
     mountPath: "/etc/hostname"
   - name: "vdev"
     readOnly: true
-    mountPath: "/etc/vdev""
+    mountPath: "/etc/vdev"
+  - name: "kfd"
+    readOnly: true
+    mountPath: "/dev/kfd"
+  - name: "mkfd"
+    readOnly: true
+    mountPath: "/dev/mkfd"
+  - name: "dri"
+    readOnly: true
+    mountPath: "/dev/dri"
 
-extraEnv:
-  - name: LD_LIBRARY_PATH
-    valueFrom:
-      configMapKeyRef:
-        name: ld-library-path-config
-        key: LD_LIBRARY_PATH
+extraEnv: []
 
 
 # Path to the kubelet

@@ -156,11 +156,13 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "dcu_utilizationrate{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"}",
+          "exemplar": false,
+          "expr": "avg(dcu_utilizationrate{node=~\"$node\", minor_number=~\"$dcu_id\"}) without(container,dcu_pod_name,dcu_pod_namespace)",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "instant": false,
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\"",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -243,7 +245,7 @@
             "uid": "${DS_PROMETHEUS-DCGM}"
           },
           "editorMode": "code",
-          "expr": "avg(dcu_utilizationrate{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"})",
+          "expr": "avg(dcu_utilizationrate{node=~\"$node\", minor_number=~\"$dcu_id\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
@@ -268,7 +270,6 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMax": -1,
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -297,6 +298,7 @@
           },
           "links": [],
           "mappings": [],
+          "max": 100,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -311,7 +313,7 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -346,17 +348,17 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "dcu_usedmemory_bytes{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"}",
+          "expr": "avg(100*dcu_usedmemory_bytes/dcu_memorycap_bytes{node=~\"$node\", minor_number=~\"$dcu_id\"}) without(container,dcu_pod_name,dcu_pod_namespace)",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\"",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "DCU Used Memory Bytes",
+      "title": "DCU Used Memory",
       "type": "timeseries"
     },
     {
@@ -433,7 +435,7 @@
             "uid": "${DS_PROMETHEUS-DCGM}"
           },
           "editorMode": "code",
-          "expr": "sum(dcu_usedmemory_bytes{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"})",
+          "expr": "sum(dcu_usedmemory_bytes{node=~\"$node\", minor_number=~\"$dcu_id\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
@@ -534,11 +536,11 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "dcu_power_usage{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"}",
+          "expr": "avg(dcu_power_usage{node=~\"$node\", minor_number=~\"$dcu_id\"}) without(container,dcu_pod_name,dcu_pod_namespace)",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\"",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -620,7 +622,7 @@
             "uid": "${DS_PROMETHEUS-DCGM}"
           },
           "editorMode": "code",
-          "expr": "sum(dcu_power_usage{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"})",
+          "expr": "sum(dcu_power_usage{node=~\"$node\", minor_number=~\"$dcu_id\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
@@ -721,11 +723,11 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "dcu_temp{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"}",
+          "expr": "avg(dcu_temp{node=~\"$node\", minor_number=~\"$dcu_id\"}) without(container,dcu_pod_name,dcu_pod_namespace)",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\"",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -807,7 +809,7 @@
             "uid": "${DS_PROMETHEUS-DCGM}"
           },
           "editorMode": "code",
-          "expr": "avg(dcu_temp{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"})",
+          "expr": "avg(dcu_temp{node=~\"$node\", minor_number=~\"$dcu_id\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
@@ -908,11 +910,11 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "dcu_pciebw_mb{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"}",
+          "expr": "avg(dcu_pciebw_mb{node=~\"$node\", minor_number=~\"$dcu_id\"}) without(container,dcu_pod_name,dcu_pod_namespace)",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\"",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -961,7 +963,7 @@
               }
             ]
           },
-          "unit": "mbytes"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -971,7 +973,7 @@
         "x": 7,
         "y": 14
       },
-      "id": 62,
+      "id": 68,
       "links": [],
       "maxDataPoints": 100,
       "options": {
@@ -994,14 +996,14 @@
             "uid": "${DS_PROMETHEUS-DCGM}"
           },
           "editorMode": "code",
-          "expr": "avg(dcu_pciebw_mb{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"})",
+          "expr": "sum(dcu_ce_count{node=~\"$node\", minor_number=~\"$dcu_id\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "DCU Avg. PCIe Bandwidth",
+      "title": "DCU Total CE Count",
       "type": "gauge"
     },
     {
@@ -1095,11 +1097,11 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "dcu_sclk{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"}",
+          "expr": "avg(dcu_sclk{node=~\"$node\", minor_number=~\"$dcu_id\"}) without(container,dcu_pod_name,dcu_pod_namespace)",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\"",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -1148,7 +1150,7 @@
               }
             ]
           },
-          "unit": "rotmhz"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1158,7 +1160,7 @@
         "x": 19,
         "y": 14
       },
-      "id": 64,
+      "id": 67,
       "links": [],
       "maxDataPoints": 100,
       "options": {
@@ -1181,15 +1183,433 @@
             "uid": "${DS_PROMETHEUS-DCGM}"
           },
           "editorMode": "code",
-          "expr": "avg(dcu_sclk{instance=~\"$instance\", node=~\"$node\", minor_number=~\"$dcu_id\", dcu_pod_namespace=~\"$namespace\", dcu_pod_name=~\"$pod\"})",
+          "expr": "sum(dcu_ue_count{node=~\"$node\", minor_number=~\"$dcu_id\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "DCU Avg. Sclk",
+      "title": "DCU Total UE Count",
       "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS-DCGM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "id": 65,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS-DCGM}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "avg without(container, dcu_pod_name, dcu_pod_namespace) (dcu_ce_count{node=~\"$node\", minor_number=~\"$dcu_id\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\",block_type=\"{{block_type}}\"",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "DCU CE Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS-DCGM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "id": 66,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS-DCGM}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "avg without(container, dcu_pod_name, dcu_pod_namespace) (dcu_ue_count{node=~\"$node\", minor_number=~\"$dcu_id\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",pcieBus_number=\"{{pcieBus_number}}\",block_type=\"{{block_type}}\"",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "DCU UE Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS-DCGM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 69,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS-DCGM}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "avg without(container, dcu_pod_name, dcu_pod_namespace) (vdcu_utilizationrate{node=~\"$node\", minor_number=~\"$dcu_id\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",vdcu_computer_unit=\"{{vdcu_computer_unit}}\",vdcu_memory_cap=\"{{vdcu_memory_cap}}\",vdcu_minor_number=\"{{vdcu_minor_number}}\"",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "VDCU Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS-DCGM}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "id": 70,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS-DCGM}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "avg without(container, dcu_pod_name, dcu_pod_namespace) (vdcu_usedmemory_bytes{node=~\"$node\", minor_number=~\"$dcu_id\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",dcu_id= \"{{minor_number}}\",device_id=\"{{device_id}}\",vdcu_computer_unit=\"{{vdcu_computer_unit}}\",vdcu_memory_cap=\"{{vdcu_memory_cap}}\",vdcu_minor_number=\"{{vdcu_minor_number}}\"",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "VDCU Used Memory Bytes",
+      "type": "timeseries"
     }
   ],
   "refresh": "10s",
@@ -1204,34 +1624,11 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS-DCGM}"
         },
-        "definition": "label_values(instance)",
-        "hide": 0,
-        "includeAll": false,
-        "label": "instance:",
-        "multi": false,
-        "name": "instance",
-        "options": [],
-        "query": {
-          "query": "label_values(instance)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_PROMETHEUS-DCGM}"
-        },
         "definition": "label_values(dcu_utilizationrate,node)",
         "hide": 0,
         "includeAll": true,
         "label": "node:",
-        "multi": false,
+        "multi": true,
         "name": "node",
         "options": [],
         "query": {
@@ -1254,7 +1651,7 @@
         "hide": 0,
         "includeAll": true,
         "label": "dcu_id:",
-        "multi": false,
+        "multi": true,
         "name": "dcu_id",
         "options": [],
         "query": {
@@ -1265,52 +1662,6 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 3,
-        "type": "query"
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_PROMETHEUS-DCGM}"
-        },
-        "definition": "label_values(dcu_pod_namespace,dcu_pod_nameapce)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "namespace:",
-        "multi": false,
-        "name": "namespace",
-        "options": [],
-        "query": {
-          "query": "label_values(dcu_pod_namespace,dcu_pod_nameapce)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_PROMETHEUS-DCGM}"
-        },
-        "definition": "label_values(dcu_pod_name,dcu_pod_name)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "pod:",
-        "multi": false,
-        "name": "pod",
-        "options": [],
-        "query": {
-          "query": "label_values(dcu_pod_name,dcu_pod_name)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
         "type": "query"
       }
     ]
@@ -1345,8 +1696,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "DCU Test",
+  "title": "DCU Exporter",
   "uid": "bdbedb7b-9497-4de6-b94c-c073cde1cf56",
-  "version": 1,
+  "version": 14,
   "weekStart": ""
 }
