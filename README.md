@@ -20,6 +20,7 @@ DCU-Exporter的官方文档可以在 [光合开发者社区](https://cancon.hpcc
    在/opt/dcu-exporter/lib目录创建指向librocm_smi64.so.2.8的软链接librocm_smi64.so.2和指向librocm_smi64.so.2的软链接librocm_smi64.so；
    在/opt/dcu-exporter/lib目录创建指向libhydmi.so.1.4的软链接libhydmi.so.1和指向libhydmi.so.1的软链接libhydmi.so。
    ![img.png](liblink.png)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FProject-HAMi%2Fdcu-exporter.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FProject-HAMi%2Fdcu-exporter?ref=badge_shield)
 2. 动态链接库加载到系统环境变量
    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/dcu-exporter/lib
 
@@ -150,3 +151,6 @@ Kubernetes方式部署dcu-exporter时，已经通过prometheus.io/scrape: 'true'
 ## Grafana Dashboard
 
 你可以在本项目grafana目录下获取dcu-exporter的Grafana Dashborad模板文件dcu-exporter-dashboard.json
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FProject-HAMi%2Fdcu-exporter.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FProject-HAMi%2Fdcu-exporter?ref=badge_large)
